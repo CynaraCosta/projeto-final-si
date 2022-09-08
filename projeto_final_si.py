@@ -15,7 +15,9 @@ Nós somos:
 
 E nossos objetivos são:
 - Realizar a análise do seguinte dataset: https://www.kaggle.com/datasets/jimschacko/airlines-dataset-to-predict-a-delay
--
+- Treinar modelos de ML para realizar inferências sobre a ocorrência de atraso em voos
+
+## Inicialização
 """
 
 # Importações
@@ -39,14 +41,14 @@ data_table.DataTable(dataset, include_index=False, num_rows_per_page=10)
 dataset.isnull().sum()
 
 """# Fazendo uma breve descrição do dataset
-- Airline =     
-- Flight =      
-- AirportFrom  =
-- AirportTo = 
-- DayOfWeek =    
-- Time =          
-- Lenght =        
-- Delay =  
+- Airline = Companhia aérea
+- Flight = Número do voo
+- AirportFrom  = Aeroporto de partida
+- AirportTo = Aeroporto de destino
+- DayOfWeek = Dia da semana
+- Time = Tempo de duração
+- Lenght = Número de passageiros
+- Delay = Ocorrência de atraso
 """
 
 dataset.describe()
@@ -55,6 +57,8 @@ X = dataset.drop('Delay', axis = 1)
 y = dataset['Delay']
 print(X.info())
 X.head()
+
+"""## Pré-processamento"""
 
 # Colocando tudo para valores e não mais descrições 
 
@@ -141,10 +145,13 @@ X_normalization
 
 # Separando o dataset em treinamento e teste
 from sklearn.model_selection import train_test_split
+
+SEED = 20
+
 X_train, X_test, y_train, y_test = train_test_split(X,
                                                     y,
-                                                    test_size=0.30, 
-                                                    random_state=0)
+                                                    test_size=0.20, 
+                                                    random_state=SEED)
 
 X_train.shape, y_train.shape
 
@@ -170,20 +177,61 @@ def print_score(classifier,X_train,y_train,X_test,y_test,train=True):
         print('Accuracy Score: {0:.4f}\n'.format(accuracy_score(y_test,classifier.predict(X_test))))
         print('Classification Report:\n{}\n'.format(classification_report(y_test,classifier.predict(X_test))))
 
-"""KNN
+"""##Primeiro Algoritmo: KNN
 
 """
 
-# Fazendo o fit do algoritmo KNN com o dataset de treino
-
 from sklearn.neighbors import KNeighborsClassifier as KNN
 
-classifier = KNN()
-classifier.fit(X_train, y_train)
+k_range = tuple(range(1, 30))
+k_scores_test = []
 
-print_score(classifier,X_train,y_train,X_test,y_test,train=True)
+for k in k_range:
+  knn = KNN(n_neighbors=k, weights="distance")
+  knn.fit(X_train, y_train)
+  k_scores_test.append(knn.score(X_test, y_test))
 
-"""Naive"""
+k_scores_test
+
+from matplotlib import pyplot as plt
+
+plt.rcParams["figure.autolayout"] = True
+
+fig, ax = plt.subplots(figsize=(10, 8))
+ax.set_xlabel("K")
+ax.set_ylabel("Accuracy")
+ax.set_title("Accuracy score vs K")
+ax.plot(k_range, k_scores_test, marker='o', label='training')
+
+for k, t in zip(k_range, k_scores_test):
+  if k % 2 != 0:
+    plt.text(k, t, k)
+
+import numpy as np
+
+best_values = max(zip(k_range, k_scores_test), key=lambda v:v[-1])
+
+best_k, best_acc_test = best_values
+
+best_k, best_acc_test
+
+best_k
+
+knn = KNN(n_neighbors=best_k, weights="distance")
+
+knn.fit(X_train, y_train)
+
+from sklearn import metrics
+
+y_pred = knn.predict(X_test)
+
+print("Accuracy train: ", knn.score(X_train, y_train))
+print("Accuracy predict: ", metrics.accuracy_score(y_test, y_pred))
+print("Accuracy test: ", knn.score(X_test, y_test))
+
+print_score(knn, X_train, y_train, X_test, y_test, train=True)
+
+"""##Segundo Algoritmo: Naive Bayes"""
 
 # Fazendo o fit do algoritmo Naive Bayes com o dataset de treino 
 
@@ -194,21 +242,36 @@ classifier.fit(X_train,y_train)
 
 print_score(classifier,X_train,y_train,X_test,y_test,train=True)
 
-"""### Terceiro Algoritmo: Decision Tree"""
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+y_pred = classifier.predict(X_test)
+
+labels = [0, 1]
+
+cm = confusion_matrix(y_test, y_pred, labels=labels)
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+cax = ax.matshow(cm, cmap='RdPu')
+plt.title('Confusion matrix with NB')
+
+fig.colorbar(cax)
+ax.set_xticklabels([''] + labels)
+ax.set_yticklabels([''] + labels)
+
+plt.xlabel('predict')
+plt.ylabel('True')
+plt.show()
+
+"""## Terceiro Algoritmo: Decision Tree"""
 
 # Fazendo o fit do algoritmo Decision Tree com o dataset de treino 
-from sklearn.tree import DecisionTreeClassifier as dt
+from sklearn.tree import DecisionTreeClassifier as dt, plot_tree
 
 classifier = dt(criterion='entropy', random_state = 40)
 classifier.fit(X_train, y_train)
 
+plot_tree(classifier)
+
 print_score(classifier,X_train,y_train,X_test,y_test,train=True)
-
-"""# Conclusão
-
-acuracia e desvio knn
-
-acuracia e desvio naive
-
-acuracia e desvio decision tree
-"""
